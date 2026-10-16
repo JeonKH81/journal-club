@@ -228,7 +228,7 @@ async function loadReports(){
     if(!r.length){ $("#reports").innerHTML = '<p class="empty">아직 만든 보고서가 없습니다. 위에 PDF 를 올려 첫 보고서를 만드십시오.</p>'; return; }
     $("#reports").innerHTML = '<ul class="cards">' + r.map(x => {
       const base = "/reports/" + encodeURIComponent(x.folder) + "/";
-      const meta = [x.created ? "분석 " + esc(String(x.created).slice(0,10)) : "", x.minutes!=null ? `${esc(x.minutes)}분` : "", x.cost!=null ? `약 $${esc(x.cost)}` : ""].filter(Boolean).join(" · ");
+      const meta = [x.created ? "분석 " + esc(String(x.created).slice(0,10)) : "", x.minutes!=null ? `${esc(x.minutes)}분` : "", x.engine==="claude_code" ? "구독" : (x.cost!=null ? `약 $${esc(x.cost)}` : "")].filter(Boolean).join(" · ");
       return `<li class="card"><span class="j">${esc(x.journal||"")} ${esc(x.year||"")}</span>
         <a class="t" href="${base}report.html" target="_blank" rel="noopener">${esc(x.title)}</a>
         <span class="m">${meta}</span>

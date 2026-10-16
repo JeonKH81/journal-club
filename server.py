@@ -65,7 +65,8 @@ def list_reports(base=REPORTS):
             ex = a.get("extract", {})
             out.append({"folder": d.name, "title": a.get("title"), "journal": ex.get("journal"),
                         "year": ex.get("year"), "created": a.get("created"),
-                        "minutes": round(a["run"]["seconds"] / 60, 1), "cost": a["run"].get("cost_usd")})
+                        "minutes": round(a["run"]["seconds"] / 60, 1), "cost": a["run"].get("cost_usd"),
+                        "engine": a["run"].get("engine", "api")})
         except Exception:  # noqa: BLE001
             out.append({"folder": d.name, "title": d.name})
     out.sort(key=lambda r: r.get("created") or "", reverse=True)

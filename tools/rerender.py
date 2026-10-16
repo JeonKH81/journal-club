@@ -75,7 +75,7 @@ def main():
 
     # 항목 4 다시 묻기
     if a.redo == "s4":
-        claude = analyzer.Claude(cfg, paper_text)
+        claude = analyzer.make_engine(cfg, paper_text)
         fig_txt = analyzer.figures_text(an["captions"], an["extract"].get("figures_tables") or [])
         req, sent = analyzer.s4_content(analyzer.SECTION_PROMPTS["s4"].replace("{figures}", fig_txt), figs,
                                         folder / "paper.pdf", bool(cfg.get("figure_vision", True)))

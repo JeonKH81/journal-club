@@ -6,12 +6,17 @@
   3) 보고서 폴더를 만들고 Figure·Table 을 잘라 figures/ 에 저장
   4) 외부 조회: PubMed · OpenAlex · Crossref · Semantic Scholar · 저널 등급표 (조회 하나가 실패해도 나머지는 계속)
   5) Claude 8회(항목 2~8 + 인용문헌 한 줄 요약): 논문 본문은 system 에 두고 prompt caching 으로 재사용.
+     engine 이 claude_code 면 같은 요청을 이 컴퓨터의 Claude Code(구독)에 넘긴다 — make_engine().
      figure_vision 이 켜져 있으면 항목 4 요청에 잘라낸 그림을 함께 넣는다.
   6) 해설 속 수치를 원문과 대조 (numcheck.py) → render.py 가 report.html 을 만든다
 """
 import base64
 import concurrent.futures as cf
 import json
+import os
+import shutil
+import subprocess
+import tempfile
 import re
 import threading
 import time
@@ -148,6 +153,11 @@ class Claude:
             return json.loads(text)
         return text
 
+    nominal_cost = None
+
+    def close(self):
+        pass
+
     def cost(self):
         p = PRICES.get(self.model)
         if not p:
@@ -155,6 +165,109 @@ class Claude:
         u = self.usage
         return round((u["input"] * p["in"] + u["output"] * p["out"] + u["cache_write"] * p["cache_write"]
                       + u["cache_read"] * p["cache_read"]) / 1e6, 3)
+
+
+class ClaudeCode:
+    """구독 모드 — 이 컴퓨터의 Claude Code(claude.ai 로그인)에 한 줄 명령으로 같은 요청을 넘긴다.
+    API 키 과금 대신 구독의 사용량 한도를 쓴다. 본인 사용 전용.
+    환경을 최소로 띄운다(설정·MCP·스킬 전부 끔, 도구는 Read 만) — 그래야 요청당 덤이 수천 토큰에 그친다."""
+
+    def __init__(self, cfg, paper_text):
+        self.cfg = cfg
+        self.paper = paper_text
+        self.model = cfg.get("claude_code_model", "sonnet")   # Claude Code 는 'sonnet' / 'opus' 별칭을 받는다
+        self.bin = shutil.which("claude") or cfg.get("claude_code_bin", "claude")
+        self.lock = threading.Lock()
+        self.usage = {"calls": 0, "input": 0, "output": 0, "cache_write": 0, "cache_read": 0}
+        self.call_log = []
+        self.nominal_cost = 0.0       # Claude Code 가 셈한 환산액(참고). 구독이라 실제 청구는 없다
+        self.cwd = Path(tempfile.mkdtemp(prefix="journal_club_cc_"))   # 빈 폴더 — 프로젝트 설정이 딸려오지 않게
+        self.add_dirs = []
+
+    def ask(self, name, prompt, schema=None, max_tokens=None):
+        # prompt 가 [글·그림 블록] 목록이면 그림은 파일로 두고 Read 로 열어 보게 한다
+        if isinstance(prompt, list):
+            prompt = self._blocks_to_text(name, prompt)
+        body = f"<paper>\n{self.paper}\n</paper>\n\n{prompt}"
+        cmd = [self.bin, "-p", "--output-format", "json", "--model", self.model,
+               "--effort", str(self.cfg.get("effort", "medium")),
+               "--system-prompt", SYSTEM_RULES,
+               "--tools", "Read", "--allowedTools", "Read",
+               "--no-session-persistence", "--disable-slash-commands",
+               "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
+               "--setting-sources", ""]
+        for d in self.add_dirs:
+            cmd += ["--add-dir", str(d)]
+        if schema:
+            cmd += ["--json-schema", json.dumps(schema)]
+        env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}   # 키가 있으면 키를 먼저 쓰므로 숨긴다
+        t0 = time.time()
+        try:
+            r = subprocess.run(cmd, input=body, capture_output=True, text=True, cwd=self.cwd, env=env,
+                               timeout=int(self.cfg.get("claude_code_timeout", 1200)))
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Claude Code 응답이 너무 오래 걸려 중단했습니다")
+        d = None
+        for ln in reversed((r.stdout or "").strip().splitlines()):
+            if ln.startswith("{"):
+                try:
+                    d = json.loads(ln)
+                    break
+                except json.JSONDecodeError:
+                    continue
+        if d is None:
+            raise RuntimeError("Claude Code 가 답을 주지 않았습니다: " + ((r.stderr or r.stdout or "")[-400:]).strip())
+        u = d.get("usage") or {}
+        with self.lock:
+            self.usage["calls"] += 1
+            self.usage["input"] += u.get("input_tokens") or 0
+            self.usage["output"] += u.get("output_tokens") or 0
+            self.usage["cache_write"] += u.get("cache_creation_input_tokens") or 0
+            self.usage["cache_read"] += u.get("cache_read_input_tokens") or 0
+            self.nominal_cost += float(d.get("total_cost_usd") or 0)
+            self.call_log.append({"name": name, "seconds": round(time.time() - t0, 1),
+                                  "input": u.get("input_tokens"), "output": u.get("output_tokens"),
+                                  "cache_write": u.get("cache_creation_input_tokens"),
+                                  "cache_read": u.get("cache_read_input_tokens"),
+                                  "stop": d.get("subtype"), "model": ",".join((d.get("modelUsage") or {}).keys()),
+                                  "turns": d.get("num_turns")})
+        if d.get("is_error"):
+            raise RuntimeError("Claude Code 오류: " + str(d.get("result") or d.get("subtype"))[:300])
+        if schema:
+            so = d.get("structured_output")
+            if so is None:
+                so = json.loads(d.get("result") or "{}")
+            return so
+        return (d.get("result") or "").strip()
+
+    def _blocks_to_text(self, name, blocks):
+        vdir = self.cwd / "figures"
+        vdir.mkdir(exist_ok=True)
+        if vdir not in self.add_dirs:
+            self.add_dirs.append(vdir)
+        parts, n = [], 0
+        for b in blocks:
+            if b.get("type") == "text":
+                parts.append(b["text"])
+            elif b.get("type") == "image":
+                n += 1
+                f = vdir / f"{name}_{n}.png"
+                f.write_bytes(base64.standard_b64decode(b["source"]["data"]))
+                parts.append(f"→ 이 그림 파일을 Read 도구로 열어 직접 본다: {f}")
+        return "\n".join(parts)
+
+    def cost(self):
+        return None     # 구독 — 청구 없음. 참고 환산액은 nominal_cost
+
+    def close(self):
+        shutil.rmtree(self.cwd, ignore_errors=True)
+
+
+def make_engine(cfg, paper_text):
+    """config.json 의 engine: "api"(Claude 자동통로, 키 과금) 또는 "claude_code"(구독 모드)."""
+    if cfg.get("engine", "api") == "claude_code":
+        return ClaudeCode(cfg, paper_text)
+    return Claude(cfg, paper_text)
 
 
 S = {"type": "string"}
@@ -386,7 +499,7 @@ def run(pdf_path, cfg, progress=None, out_root=None, source_name=None):
         raise RuntimeError("PDF 에서 글자를 거의 읽지 못했습니다. 스캔 이미지 PDF 일 수 있습니다.")
     pg.set("pdf", "논문 글자 읽기", "done", f"{pdf['n_pages']}쪽, 그림·표 캡션 {len(pdf['captions'])}개")
 
-    claude = Claude(cfg, pdf["text"])
+    claude = make_engine(cfg, pdf["text"])
     local_ranks = HERE / "data" / "journal_ranks_local.json"
     src = Sources(cfg.get("contact_email", ""), ranks_path, local_ranks)
 
@@ -497,9 +610,11 @@ def run(pdf_path, cfg, progress=None, out_root=None, source_name=None):
         "numcheck": numcheck.check_sections(sections, pdf["text"]),
         "errors": errors,
         "run": {"seconds": elapsed, "model": claude.model, "effort": cfg.get("effort"),
+                "engine": cfg.get("engine", "api"), "nominal_cost_usd": claude.nominal_cost,
                 "claude_usage": claude.usage, "claude_calls": claude.call_log, "cost_usd": claude.cost(),
                 "lookup_calls": src.calls, "lookup_failures": src.failures},
     }
+    claude.close()
     (folder / "analysis.json").write_text(json.dumps(analysis, ensure_ascii=False, indent=1), encoding="utf-8")
     from render import render_report
     (folder / "report.html").write_text(render_report(analysis, folder), encoding="utf-8")

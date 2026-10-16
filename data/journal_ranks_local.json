@@ -6,6 +6,14 @@
   "lancet": {
    "q_sjr": 1,
    "probed": "Consensus sjr_max=1 프로브 2026-10-16: HOST-EXAM 10-year (Kang 2026, Lancet) 가 Q1 필터에서도 나옴 → Q1"
+  },
+  "sci rep": {
+   "name": "Scientific Reports",
+   "issns": [
+    "2045-2322"
+   ],
+   "q_sjr": 1,
+   "probed": "Consensus sjr_max=1 프로브 2026-10-16: Jeon 2024 AI-ECG STEMI 논문이 Q1 필터에서도 나옴 → Q1"
   }
  }
 }

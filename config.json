@@ -1,6 +1,11 @@
 {
   "model": "claude-sonnet-5-5",
   "model_note": "더 깊은 분석을 원하면 claude-opus-5-5 로 바꾼다 (비용 약 2배).",
+  "engine": "claude_code",
+  "engine_note": "\"claude_code\" = 구독 모드: 이 컴퓨터의 Claude Code(claude.ai 로그인)에 넘긴다. 키 과금 없음, 구독 사용량 한도를 씀, 본인 사용 전용. \"api\" = Claude 자동통로(키 과금, 더 빠름).",
+  "claude_code_model": "sonnet",
+  "claude_code_model_note": "구독 모드의 모델 별칭: sonnet / opus.",
+  "claude_code_timeout": 1200,
   "effort": "medium",
   "effort_note": "low / medium / high / xhigh. 높일수록 꼼꼼하지만 느리고 비싸다.",
   "max_tokens": 32000,

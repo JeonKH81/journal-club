@@ -492,6 +492,13 @@ def authors_tables(a):
     return _fold("받아온 자료 — OpenAlex · PubMed", h) if h else ""
 
 
+def cost_text(r):
+    if r.get("engine") == "claude_code":
+        nc = r.get("nominal_cost_usd")
+        return "구독 모드 (이 컴퓨터의 Claude Code 로그인) — 별도 청구 없음" + (f", 환산하면 약 ${round(nc, 2)} 어치" if nc else "")
+    return f"예상 비용 약 ${e(str(r.get('cost_usd')))}"
+
+
 def run_box(a):
     r = a["run"]
     u = r["claude_usage"]
@@ -499,7 +506,7 @@ def run_box(a):
     fails = r["lookup_failures"]
     h = ("<details class='run'><summary>이 보고서를 만든 과정</summary>"
          f"<p>분석 모델 {e(r['model'])} (분석 깊이 {e(str(r['effort']))}) · 걸린 시간 {round(r['seconds'] / 60, 1)}분 · "
-         f"Claude 요청 {e(str(u['calls']))}회 · 예상 비용 약 ${e(str(r['cost_usd']))}</p>"
+         f"Claude 요청 {e(str(u['calls']))}회 · {cost_text(r)}</p>"
          f"<p>외부 조회: " + ", ".join(f"{e(str(k))} {e(str(v))}회" for k, v in lc.items()) + "</p>")
     if fails:
         h += "<p>조회 실패 " + str(len(fails)) + "건:</p><ul>" + "".join(
