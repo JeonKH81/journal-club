@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Journal Club</title>
+<style>
+:root{--bg:#f4f5f7;--surface:#fff;--ink:#1a1d23;--ink-2:#394049;--muted:#5d646e;--line:#dcdfe4;--line-2:#eceef1;
+--accent:#3949a0;--accent-ink:#2b3880;--accent-soft:#e7eaf6;--warn:#98550f;--warn-soft:#fbf0e2;
+--serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"AppleMyungjo","Noto Serif KR",serif;
+--sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
+--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#121419;--surface:#191c22;--ink:#e3e5e9;--ink-2:#c4c8cf;--muted:#99a0ab;--line:#2c3038;--line-2:#22252c;
+--accent:#a6b0f0;--accent-ink:#c3caf7;--accent-soft:#232847;--warn:#e3a862;--warn-soft:#2d2318}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--sans);word-break:keep-all;overflow-wrap:anywhere}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+main{max-width:920px;margin:0 auto;padding:56px 24px 88px}
+.brand{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0}
+h1{font:600 clamp(36px,5.6vw,56px)/1.04 var(--serif);margin:10px 0 18px;letter-spacing:-.022em;text-wrap:balance}
+.sub{color:var(--ink-2);margin:0;max-width:30em}
+
+/* 첫 화면 선화: 논문 한 장 → 8개 면. 분석 중에는 진행 막대와 같은 상태로 면이 채워진다 */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:28px 40px;align-items:center;margin:0 0 36px}
+.art{display:block;width:100%;height:auto;overflow:visible}
+.art .pp{fill:var(--surface);stroke:var(--ink-2);stroke-width:1.4;stroke-linejoin:round}
+.art .pg{fill:none;stroke:var(--ink-2);stroke-width:1.1;stroke-linejoin:round}
+.art .pt{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round}
+.art .pl,.art .pf{fill:none;stroke:var(--muted);stroke-width:1;stroke-linecap:round;opacity:.75}
+.art .pfk{fill:none;stroke:var(--accent);stroke-width:1.5}
+.art .ln{fill:none;stroke:var(--muted);stroke-width:1;opacity:.55;transition:stroke .4s,opacity .4s}
+.art .pn{fill:var(--surface);stroke:var(--line);stroke-width:1.2;transition:fill .4s,stroke .4s}
+.art .no{font:500 9.5px var(--serif);fill:var(--muted)}
+.art .gl path,.art .gl rect,.art .gl circle{fill:none;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.art .g{stroke:var(--muted)} .art .g.f{fill:var(--muted)}
+.art .k{stroke:var(--accent)} .art .k.kf{fill:var(--accent)}
+.art .dash{stroke-dasharray:3 3}
+.art .p{transition:opacity .4s}
+/* 분석 중: 기다리는 면은 흐리게, 하는 중은 테두리만 남색, 끝난 면은 남색으로 채움 */
+.art.live .p[data-st=wait]{opacity:.38}
+.art.live .p[data-st=doing] .pn{stroke:var(--accent);animation:breathe 1.6s ease-in-out infinite}
+.art.live .p[data-st=done] .pn{fill:var(--accent-soft);stroke:var(--accent)}
+.art.live .p[data-st=done] .g{stroke:var(--accent)} .art.live .p[data-st=done] .g.f{fill:var(--accent)}
+.art.live .p[data-st=done] .no{fill:var(--accent-ink)}
+.art.live .p[data-st=fail] .pn{stroke:var(--warn);fill:var(--warn-soft)}
+.art.live .ln[data-st=wait]{opacity:.25}
+.art.live .ln[data-st=done],.art.live .ln[data-st=doing]{stroke:var(--accent);opacity:.85}
+.art.live .ln[data-st=fail]{stroke:var(--warn);opacity:.85}
+@keyframes breathe{50%{stroke-opacity:.35}}
+/* 처음 한 번: 종이 → 갈래 선 → 면 순서로 그려진다 (약 2.4초) */
+@media (prefers-reduced-motion:no-preference){
+.art .d{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .9s cubic-bezier(.4,0,.2,1) var(--dl) forwards}
+.art .pp.d{animation-duration:.7s}
+.art .p{opacity:0;animation:rise .55s cubic-bezier(.2,.7,.2,1) var(--dl) forwards}
+.art.live .p{opacity:1;animation:none}
+}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes rise{from{opacity:0}to{opacity:1}}
+
+#drop{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;border:1.5px dashed var(--line);border-radius:12px;background:var(--surface);padding:28px 28px;cursor:pointer;transition:border-color .15s,background .15s}
+#drop:hover,#drop.over{border-color:var(--accent);background:var(--accent-soft)}
+#drop .doc{width:44px;height:56px;border:1.5px solid var(--accent);border-radius:4px 14px 4px 4px;position:relative}
+#drop .doc::before{content:"";position:absolute;inset-inline:9px;height:1.5px;background:var(--accent);top:20px;box-shadow:0 7px 0 var(--accent),0 14px 0 var(--accent)}
+#drop strong{display:block;font-size:18px;margin-bottom:2px}
+#drop span{color:var(--muted);font-size:15px}
+
+#job{display:none;margin-top:28px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px 24px}
+#job.on{display:block}
+.jobtop{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+#jobtitle{font-size:18px;margin:0;font-weight:600}
+#elapsed{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.bar{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px;margin:18px 0 8px;padding:0;list-style:none}
+.bar li{display:flex;flex-direction:column;gap:6px;min-width:0}
+.bar .cell{height:8px;border-radius:4px;background:var(--line-2);border:1px solid var(--line)}
+.bar .done .cell{background:var(--accent);border-color:var(--accent)}
+.bar .doing .cell{background:linear-gradient(90deg,var(--accent) 0 40%,var(--accent-soft) 40%);background-size:200% 100%;border-color:var(--accent);animation:slide 1.4s linear infinite}
+.bar .fail .cell{background:var(--warn);border-color:var(--warn)}
+.bar .lab{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .lab b{font:500 14px var(--serif);color:var(--ink-2);margin-inline-end:3px}
+.bar .doing .lab,.bar .done .lab{color:var(--ink-2)}
+.bar .fail .lab{color:var(--warn)}
+@keyframes slide{from{background-position:100% 0}to{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.bar .doing .cell,.art .pn{animation:none!important}*{transition:none!important}}
+#now{font-size:15px;color:var(--ink-2);margin:10px 0 0}
+details.steps{margin-top:14px}
+details.steps summary{cursor:pointer;font-size:14px;color:var(--muted)}
+ul.steps{list-style:none;padding:0;margin:8px 0 0}
+ul.steps li{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:10px;padding:6px 0;border-bottom:1px solid var(--line-2);font-size:14.5px}
+ul.steps li:last-child{border-bottom:0}
+.mark{text-align:center}
+.done .mark{color:var(--accent)} .fail,.fail .mark{color:var(--warn)} .wait{color:var(--muted)}
+.note{color:var(--muted);font-size:13px;text-align:end}
+#result{display:flex;flex-wrap:wrap;gap:10px}
+#result:not(:empty){margin-top:16px}
+.btn{display:inline-flex;align-items:center;font:inherit;font-size:14.5px;color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 14px;text-decoration:none;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.err{color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:10px 14px;margin:0;width:100%}
+
+h2.list{font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.02em;margin:52px 0 12px}
+.cards{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:12px}
+.card{display:flex;flex-direction:column;gap:6px;height:100%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.card:hover{border-color:var(--accent)}
+.card .j{font-size:13.5px;color:var(--accent-ink);font-weight:600}
+.card a.t{font:500 18px/1.35 var(--serif);color:var(--ink);text-decoration:none}
+.card a.t:hover{color:var(--accent-ink)}
+.card .m{font-size:13.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.card .act{display:flex;flex-wrap:wrap;gap:16px;margin-top:auto;padding-top:8px;font-size:14px}
+.empty{color:var(--muted)}
+.linkbtn{font:inherit;background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.linkbtn:hover{color:var(--warn)}
+.card .act .linkbtn{margin-inline-start:auto}
+details.trash{margin-top:40px;border-top:1px solid var(--line);padding-top:14px}
+details.trash summary{cursor:pointer;font-size:14px;color:var(--muted)}
+ul.trash{list-style:none;margin:10px 0 0;padding:0}
+ul.trash li{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:14.5px}
+ul.trash li:last-child{border-bottom:0}
+ul.trash .t{flex:1 1 18em;min-width:0;color:var(--ink-2)}
+ul.trash .linkbtn.go{color:var(--accent)}
+ul.trash .linkbtn.kill:hover{color:var(--warn)}
+#trashmsg:empty{display:none}
+.foot{margin-top:48px;color:var(--muted);font-size:13.5px}
+code{font:.88em var(--mono);background:var(--line-2);padding:1px 4px;border-radius:4px}
+@media (max-width:760px){.hero{grid-template-columns:minmax(0,1fr)}.art{max-width:340px;margin-inline:auto}}
+@media (max-width:640px){main{padding:32px 16px 64px}#drop{padding:22px 18px;gap:14px}
+.bar{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:12px}#job{padding:18px 16px}}
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+<div>
+<p class="brand">Journal Club</p>
+<h1 lang="en">More than one from a paper</h1>
+<p class="sub">논문 한 편에서 여덟 갈래를 읽어 냅니다. 의학논문 PDF 를 올리면 메타데이터·연구 설계·결과·한계부터 저자 연구 활동까지 나누어 분석한 한국어 보고서를 만듭니다. 한 편에 몇 분 걸립니다.</p>
+</div>
+<svg id="art" class="art" viewBox="0 0 400 356" role="img" aria-labelledby="art-t" focusable="false">
+<title id="art-t">논문 한 장에서 메타데이터·Introduction·Methods·Results·Discussion·과거 연구와의 차이·Limitation·저자 연구 활동 여덟 갈래가 갈라져 나오는 선화</title>
+<g class="links">
+<path class="ln d" data-i="1" style="--dl:0.62s" pathLength="1" d="M122 128C152 128 139 40 173 40"/>
+<path class="ln d" data-i="2" style="--dl:0.69s" pathLength="1" d="M122 143C150 143 138 80 166 80L303 80"/>
+<path class="ln d" data-i="3" style="--dl:0.76s" pathLength="1" d="M122 158C152 158 139 120 173 120"/>
+<path class="ln d" data-i="4" style="--dl:0.83s" pathLength="1" d="M122 173C150 173 138 160 166 160L303 160"/>
+<path class="ln d" data-i="5" style="--dl:0.90s" pathLength="1" d="M122 188C152 188 139 200 173 200"/>
+<path class="ln d" data-i="6" style="--dl:0.97s" pathLength="1" d="M122 203C150 203 138 240 166 240L303 240"/>
+<path class="ln d" data-i="7" style="--dl:1.04s" pathLength="1" d="M122 218C152 218 139 280 173 280"/>
+<path class="ln d" data-i="8" style="--dl:1.11s" pathLength="1" d="M122 233C150 233 138 320 166 320L303 320"/>
+</g>
+<g class="paper">
+<path class="pp d" style="--dl:0s" pathLength="1" d="M18 110H106L122 126V250H18Z"/>
+<path class="pg d" style="--dl:.25s" pathLength="1" d="M106 110V126H122"/>
+<path class="pt d" style="--dl:.3s" pathLength="1" d="M30 128H96M30 136H84"/>
+<path class="pl d" style="--dl:.4s" pathLength="1" d="M30 150H110M30 157H110M30 164H102M30 171H110M30 178H74"/>
+<rect class="pf d" style="--dl:.5s" pathLength="1" x="30" y="188" width="38" height="26" rx="1"/>
+<path class="pfk d" style="--dl:.6s" pathLength="1" d="M33 197H42V202H52V207H65"/>
+<path class="pl d" style="--dl:.5s" pathLength="1" d="M76 190H110M76 197H110M76 204H104M76 211H110M30 226H110M30 233H96"/>
+</g>
+<g class="p" data-i="1" data-st="idle" transform="translate(215 40)" style="--dl:1.02s"><title>1. 메타데이터</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">1</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><path class="k" d="M-30 -15H20"/><path class="g" d="M-30 -6H30M-30 2H12"/><rect class="g" x="-30" y="10" width="17" height="8" rx="2"/><rect class="k" x="-9" y="10" width="17" height="8" rx="2"/><rect class="g" x="12" y="10" width="17" height="8" rx="2"/></g></g>
+<g class="p" data-i="2" data-st="idle" transform="translate(345 80)" style="--dl:1.14s"><title>2. Introduction</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">2</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><path class="g" d="M-30 -17H30M-21 -8H21M-12 1H12"/><path class="k" d="M0 6V18M-4.5 13.5L0 18L4.5 13.5"/></g></g>
+<g class="p" data-i="3" data-st="idle" transform="translate(215 120)" style="--dl:1.26s"><title>3. Methods</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">3</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><rect class="g" x="-12" y="-20" width="24" height="10" rx="1.5"/><path class="g" d="M0 -10V-3M-16 -3H16M-16 -3V5M16 -3V5"/><rect class="k" x="-28" y="5" width="24" height="12" rx="1.5"/><rect class="g" x="4" y="5" width="24" height="12" rx="1.5"/></g></g>
+<g class="p" data-i="4" data-st="idle" transform="translate(345 160)" style="--dl:1.38s"><title>4. Results</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">4</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><path class="g" d="M-30 -19V18H31"/><path class="g" d="M-30 -16H-22V-9H-10V-3H2V3H15V8H31"/><path class="k" d="M-30 -16H-17V-12H-5V-9H8V-6H20V-4H31"/></g></g>
+<g class="p" data-i="5" data-st="idle" transform="translate(215 200)" style="--dl:1.50s"><title>5. Discussion</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">5</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><path class="g" d="M5 -21V21"/><path class="g" d="M-21 -13H15M-13 -5H19M-25 3H9"/><rect class="g" x="-5" y="-15" width="4" height="4"/><rect class="g" x="1" y="-7" width="4" height="4"/><rect class="g" x="-10" y="1" width="4" height="4"/><path class="k" d="M-15 14L-6 10.5L3 14L-6 17.5Z"/></g></g>
+<g class="p" data-i="6" data-st="idle" transform="translate(345 240)" style="--dl:1.62s"><title>6. 과거 연구와의 차이</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">6</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><path class="g" d="M-30 4H30"/><circle class="g f" cx="-24" cy="4" r="2.5"/><circle class="g f" cx="-11" cy="4" r="2.5"/><circle class="g f" cx="2" cy="4" r="2.5"/><circle class="k" cx="20" cy="4" r="4.5"/><path class="g" d="M-24 -1V-9M-11 -1V-13M2 -1V-7"/><path class="k" d="M20 -2V-16"/></g></g>
+<g class="p" data-i="7" data-st="idle" transform="translate(215 280)" style="--dl:1.74s"><title>7. Limitation</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">7</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><path class="g dash" d="M-30 4C-10 -16 10 -4 30 -20M-30 18C-10 2 10 12 30 -2"/><path class="k" d="M-30 11C-10 -7 10 4 30 -11"/></g></g>
+<g class="p" data-i="8" data-st="idle" transform="translate(345 320)" style="--dl:1.86s"><title>8. 저자 연구 활동</title>
+<rect class="pn" x="-42" y="-30" width="84" height="60" rx="6"/>
+<text class="no" x="-36" y="-19">8</text>
+<g class="gl" transform="translate(4 3) scale(.92)"><path class="g" d="M0 1L-22 -12M0 1L19 -15M0 1L-19 15M0 1L25 10M-22 -12L-19 15M19 -15L25 10M-22 -12L4 -20M4 -20L19 -15"/><circle class="g f" cx="-22" cy="-12" r="2.6"/><circle class="g f" cx="19" cy="-15" r="2.6"/><circle class="g f" cx="-19" cy="15" r="2.6"/><circle class="g f" cx="25" cy="10" r="2.6"/><circle class="g f" cx="4" cy="-20" r="2.2"/><circle class="k kf" cx="0" cy="1" r="4.2"/></g></g>
+</svg>
+</header>
+
+<div id="drop" tabindex="0" role="button" aria-label="논문 PDF 고르기">
+  <div class="doc" aria-hidden="true"></div>
+  <div><strong>논문 PDF 를 여기에 끌어다 놓기</strong><span>또는 눌러서 파일 고르기</span></div>
+</div>
+<input type="file" id="file" accept="application/pdf,.pdf" hidden>
+
+<section id="job" aria-live="polite">
+  <div class="jobtop"><h2 id="jobtitle">분석 중</h2><span id="elapsed"></span></div>
+  <ol class="bar" id="bar"></ol>
+  <p id="now"></p>
+  <details class="steps"><summary>단계별로 보기</summary><ul class="steps" id="steps"></ul></details>
+  <div id="result"></div>
+</section>
+
+<h2 class="list">지난 보고서</h2>
+<div id="reports"><p class="empty">불러오는 중…</p></div>
+
+<details class="trash" id="trashbox" hidden><summary id="trashsum">휴지통</summary>
+  <p id="trashmsg" class="err" role="alert"></p>
+  <ul class="trash" id="trash"></ul>
+</details>
+
+<p class="foot">이 화면은 이 컴퓨터 안에서만 열립니다. 보고서는 <code>journal club/reports/</code> 폴더에 쌓입니다.</p>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SECS = [["s1","메타데이터"],["s2","Introduction"],["s3","Methods"],["s4","Results"],["s5","Discussion"],["s6","과거 연구와의 차이"],["s7","Limitation"],["s8","저자 연구 활동"]];
+let timer = null, t0 = 0;
+
+async function loadReports(){
+  try{
+    const r = await (await fetch("/api/reports")).json();
+    if(!r.length){ $("#reports").innerHTML = '<p class="empty">아직 만든 보고서가 없습니다. 위에 PDF 를 올려 첫 보고서를 만드십시오.</p>'; return; }
+    $("#reports").innerHTML = '<ul class="cards">' + r.map(x => {
+      const base = "/reports/" + encodeURIComponent(x.folder) + "/";
+      const meta = [x.created ? "분석 " + esc(String(x.created).slice(0,10)) : "", x.minutes!=null ? `${esc(x.minutes)}분` : "", x.cost!=null ? `약 $${esc(x.cost)}` : ""].filter(Boolean).join(" · ");
+      return `<li class="card"><span class="j">${esc(x.journal||"")} ${esc(x.year||"")}</span>
+        <a class="t" href="${base}report.html" target="_blank" rel="noopener">${esc(x.title)}</a>
+        <span class="m">${meta}</span>
+        <span class="act"><a href="${base}report.html" target="_blank" rel="noopener">열기</a><a href="${base}report.html?download=1">내려받기</a><a href="${base}paper.pdf" target="_blank" rel="noopener">원문 PDF</a><button type="button" class="linkbtn" data-del="${esc(x.folder)}">삭제</button></span></li>`;
+    }).join("") + "</ul>";
+  }catch(e){ $("#reports").innerHTML = '<p class="err">보고서 목록을 불러오지 못했습니다. 이 창을 새로 고치십시오.</p>'; }
+  loadTrash();
+}
+
+// 휴지통: 삭제한 보고서는 reports/_trash/ 에 옮겨져 있다. 되돌리기 / 완전히 지우기
+async function loadTrash(){
+  let r = [];
+  try{ r = await (await fetch("/api/trash")).json(); }catch(e){ return; }
+  $("#trashbox").hidden = !r.length;
+  $("#trashsum").textContent = `휴지통 (${r.length})`;
+  $("#trash").innerHTML = r.map(x => `<li><span class="t">${esc(x.title || x.folder)}${x.created ? ` · 분석 ${esc(String(x.created).slice(0,10))}` : ""}</span>
+    <button type="button" class="linkbtn go" data-restore="${esc(x.folder)}">되돌리기</button>
+    <button type="button" class="linkbtn kill" data-purge="${esc(x.folder)}">완전히 지우기</button></li>`).join("");
+}
+async function act(url, method){
+  $("#trashmsg").textContent = "";
+  try{
+    const r = await fetch(url, {method});
+    const j = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(j.error || "처리하지 못했습니다.");
+  }catch(e){ $("#trashbox").hidden = false; $("#trashbox").open = true; $("#trashmsg").textContent = e.message; }
+  loadReports();
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("button[data-del],button[data-restore],button[data-purge]"); if(!b) return;
+  if(b.dataset.del){
+    if(confirm("이 보고서를 삭제할까요? 휴지통으로 옮기며 되돌릴 수 있습니다.")) act("/api/report/" + encodeURIComponent(b.dataset.del), "DELETE");
+  }else if(b.dataset.restore){
+    act("/api/trash/" + encodeURIComponent(b.dataset.restore) + "/restore", "POST");
+  }else if(b.dataset.purge){
+    if(confirm("휴지통에서 완전히 지울까요? 지우면 되돌릴 수 없습니다.")) act("/api/trash/" + encodeURIComponent(b.dataset.purge) + "/purge", "POST");
+  }
+});
+
+function pick(){ $("#file").click(); }
+$("#drop").addEventListener("click", pick);
+$("#drop").addEventListener("keydown", e => { if(e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); }});
+["dragenter","dragover"].forEach(ev => $("#drop").addEventListener(ev, e => { e.preventDefault(); $("#drop").classList.add("over"); }));
+["dragleave","drop"].forEach(ev => $("#drop").addEventListener(ev, e => { e.preventDefault(); $("#drop").classList.remove("over"); }));
+$("#drop").addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) upload(f); });
+$("#file").addEventListener("change", e => { const f = e.target.files[0]; if(f) upload(f); e.target.value = ""; });
+
+// 8칸 막대: 항목 1(메타데이터)은 서지정보·외부 자료 받아오기가 끝나면 채운다. 2–8 은 항목별 분석 단계.
+function cellState(steps, key){
+  const by = Object.fromEntries((steps||[]).map(s => [s.key, s.state]));
+  if(key === "s1"){
+    if(by.extract === "fail" || by.lookup === "fail") return "fail";
+    if(by.lookup === "done") return "done";
+    if(by.extract || by.lookup) return "doing";
+    return "wait";
+  }
+  return by[key] || "wait";
+}
+function drawBar(steps){
+  $("#bar").innerHTML = SECS.map(([k, name], i) => {
+    const st = cellState(steps, k);
+    const word = {done:"끝남", doing:"진행 중", fail:"실패", wait:"대기"}[st];
+    return `<li class="${st}" title="${i+1}. ${esc(name)} — ${word}"><span class="cell"></span><span class="lab"><b>${i+1}</b>${esc(name)}</span><span class="sr" hidden>${word}</span></li>`;
+  }).join("");
+  drawArt(steps);
+  const doing = (steps||[]).filter(s => s.state === "doing").map(s => s.label.replace(/^분석: /, ""));
+  const done = SECS.filter(([k]) => cellState(steps, k) === "done").length;
+  $("#now").textContent = doing.length ? `지금: ${doing.join(" · ")}  (${done}/8 항목 끝남)` : (steps && steps.length ? `${done}/8 항목 끝남` : "PDF 를 올리는 중…");
+}
+
+// 첫 화면 그림의 8개 면을 진행 막대와 같은 상태로 맞춘다
+function drawArt(steps){
+  const art = $("#art"); if(!art) return;
+  art.classList.add("live");
+  SECS.forEach(([k], i) => {
+    const st = cellState(steps, k);
+    art.querySelectorAll(`[data-i="${i+1}"]`).forEach(el => el.dataset.st = st);
+  });
+}
+
+async function upload(f){
+  if(!/\.pdf$/i.test(f.name) && f.type !== "application/pdf"){ alert("PDF 파일만 올릴 수 있습니다."); return; }
+  $("#job").classList.add("on");
+  $("#jobtitle").textContent = "분석 중 — " + f.name;
+  $("#steps").innerHTML = ""; $("#result").innerHTML = ""; drawBar([]);
+  t0 = Date.now();
+  try{
+    const r = await fetch("/api/analyze", {method:"POST", headers:{"Content-Type":"application/pdf","X-Filename":encodeURIComponent(f.name)}, body:f});
+    const j = await r.json();
+    if(!r.ok){ throw new Error(j.error || "올리지 못했습니다"); }
+    poll(j.job);
+  }catch(e){ $("#result").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+
+function poll(id){
+  clearInterval(timer);
+  timer = setInterval(async () => {
+    const s = Math.round((Date.now()-t0)/1000);
+    $("#elapsed").textContent = `${Math.floor(s/60)}분 ${s%60}초 지남`;
+    let j;
+    try{ j = await (await fetch("/api/job/" + id)).json(); }catch(e){ return; }
+    const icon = {done:"✓", fail:"!", wait:"·", doing:"…"};
+    drawBar(j.steps);
+    $("#steps").innerHTML = (j.steps||[]).map(st =>
+      `<li class="${st.state}"><span class="mark">${icon[st.state]??""}</span><span>${esc(st.label)}</span><span class="note">${esc(st.note||"")}</span></li>`).join("");
+    if(j.status === "done"){
+      clearInterval(timer);
+      $("#jobtitle").textContent = "끝났습니다 — " + j.file;
+      $("#now").textContent = "8개 항목 보고서가 만들어졌습니다.";
+      const base = "/reports/" + encodeURIComponent(j.folder) + "/";
+      $("#result").innerHTML = `<a class="btn primary" href="${base}report.html" target="_blank" rel="noopener">보고서 열기</a><a class="btn" href="${base}report.html?download=1">HTML 로 내려받기</a>`;
+      loadReports();
+    }else if(j.status === "error"){
+      clearInterval(timer);
+      $("#jobtitle").textContent = "멈췄습니다 — " + j.file;
+      $("#result").innerHTML = `<p class="err">${esc(j.error)}</p>`;
+    }
+  }, 1500);
+}
+loadReports();
+</script>
+</body>
+</html>

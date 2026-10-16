@@ -1,0 +1,14 @@
+# 논문 원문·업로드·분석 결과 — 저작권·개인 자료라 올리지 않는다
+*.pdf
+_uploads/
+reports/
+# 작업장 내부 기록
+_workspace/
+WORK.md
+.claude/
+# 파이썬·시스템
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.lock

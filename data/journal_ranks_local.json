@@ -1,0 +1,11 @@
+{
+ "_meta": {
+  "note": "Journal Club 덧붙임 층. 원본 Weekly_pubmed 등급표보다 우선한다. tools/set_journal.py 로 기록."
+ },
+ "journals": {
+  "lancet": {
+   "q_sjr": 1,
+   "probed": "Consensus sjr_max=1 프로브 2026-10-16: HOST-EXAM 10-year (Kang 2026, Lancet) 가 Q1 필터에서도 나옴 → Q1"
+  }
+ }
+}

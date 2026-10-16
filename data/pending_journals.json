@@ -1,0 +1,19 @@
+{
+ "journals": [
+  {
+   "key": "sci rep",
+   "journal": "Scientific Reports",
+   "iso": "Sci Rep",
+   "issns": [
+    "2045-2322"
+   ],
+   "missing": [
+    "q_sjr"
+   ],
+   "papers": [
+    "2026-10-16_AI-enabled_ECG_index_for_predicting_left_ventricul"
+   ],
+   "added": "2026-10-16"
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+{
+  "model": "claude-sonnet-5-5",
+  "model_note": "더 깊은 분석을 원하면 claude-opus-5-5 로 바꾼다 (비용 약 2배).",
+  "effort": "medium",
+  "effort_note": "low / medium / high / xhigh. 높일수록 꼼꼼하지만 느리고 비싸다.",
+  "max_tokens": 32000,
+  "use_fallback": true,
+  "parallel_sections": 4,
+  "contact_email": "",
+  "similar_papers": 10,
+  "discussion_refs_max": 25,
+  "author_recent_works": 10,
+  "port": 8811,
+  "journal_ranks_path": "../Apps/Weekly_pubmed/skill/data/journal_ranks.json",
+  "figure_vision": true,
+  "figure_vision_note": "true 면 잘라낸 Figure·Table 이미지를 항목 4(Results) 요청에 함께 넣어 Claude 가 곡선·표를 직접 읽는다 (편당 약 0.03~0.05 달러 추가). false 면 캡션 글자만.",
+  "max_concurrent_jobs": 2,
+  "contact_email_note": "OpenAlex 에 알려줄 본인 이메일(선택). 넣으면 조회 속도 제한이 느슨해진다.",
+  "journal_ranks_path_note": "선택. 파일이 없으면 저널 등급은 OpenAlex 지표와 data/journal_ranks_local.json 만으로 표시한다."
+}
